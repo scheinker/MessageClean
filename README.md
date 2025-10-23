@@ -9,6 +9,20 @@ A safe tool for removing duplicate videos from iMessage attachments that are alr
 
 This script helps free up storage space on your Mac by identifying and safely removing video files from iMessage attachments that are duplicates of videos already in your Photos library. It's designed with multiple safety layers to protect precious family videos.
 
+## Scripts Included
+
+1. **`assess_imessage_videos.py`** - Quick assessment tool (run this first!)
+   - Read-only analysis of iMessage video attachments
+   - Shows how many videos, sizes, and distribution
+   - Helps you decide if the full cleaner is worth running
+   - Takes ~30 seconds to run
+
+2. **`imessage_video_cleaner.py`** - Full cleaning tool
+   - Interactive GUI for reviewing each video
+   - Safely moves duplicates to review folders
+   - Human approval required for every file
+   - Takes time depending on number of videos
+
 ## Safety Features
 
 - **No immediate deletion** - Files are moved to review folders, never permanently deleted by the script
@@ -40,7 +54,49 @@ python3 --version
 
 You should see something like `Python 3.9.6` or higher.
 
-## How to Use
+## Quick Assessment (Run This First!)
+
+Before running the full cleaner, use the assessment script to understand the scope of the problem:
+
+```bash
+cd /Users/matte/MessageClean
+python3 assess_imessage_videos.py
+```
+
+This will show you:
+- How many video files exist in iMessage attachments
+- Total storage used
+- Size distribution (how many are <10MB, 10-50MB, 50-100MB, etc.)
+- Which files would be processed (≥10MB)
+- Top 10 largest files
+- Estimated time to review
+- Potential storage savings
+
+**This script is read-only and completely safe** - it doesn't modify anything.
+
+Example output:
+```
+SUMMARY
+----------------------------------------------------------------------
+Total video files found: 147
+Total storage used: 3.2 GB
+Files >= 10MB (would be processed): 92
+Storage in large files: 2.8 GB
+
+SIZE DISTRIBUTION
+----------------------------------------------------------------------
+< 10 MB      :   55 files (37.4%) - 245.3 MB
+10-50 MB     :   68 files (46.3%) - 1.8 GB
+50-100 MB    :   18 files (12.2%) - 1.2 GB
+100-500 MB   :    6 files ( 4.1%) - 980.5 MB
+
+Estimated time to review: 46-92 minutes
+Potential storage savings: 2.8 GB
+```
+
+Run this first on your wife's Mac to see if the full cleaner is worth the effort!
+
+## How to Use the Full Cleaner
 
 ### Step 1: Run the Script
 
