@@ -1,5 +1,8 @@
 # iMessage Video Cleaner
 
+> **⚠️ WARNING: UNTESTED SOFTWARE**
+> This tool has not yet been tested in production. It was created to help manage iMessage video attachments, but **has not been validated** on real systems with real data. If you found this repository randomly, please **do not use this tool** until this notice is removed. Use at your own risk.
+
 A safe tool for removing duplicate videos from iMessage attachments that are already stored in your Photos library.
 
 ## What This Does
