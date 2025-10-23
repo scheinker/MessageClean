@@ -252,7 +252,6 @@ def process_batch(batch, batch_num, total_batches, log_file):
         try:
             # Import to Photos using AppleScript
             # skip check duplicates true = no dialogs for duplicates
-            # without interaction = suppress error dialogs
             # Escape quotes in filename for AppleScript
             safe_path = str(img_path).replace('"', '\\"')
             script = f'''
@@ -260,6 +259,8 @@ def process_batch(batch, batch_num, total_batches, log_file):
                     with timeout of 30 seconds
                         try
                             import POSIX file "{safe_path}" skip check duplicates true
+                        on error errMsg
+                            return errMsg
                         end try
                     end timeout
                 end tell
@@ -271,20 +272,29 @@ def process_batch(batch, batch_num, total_batches, log_file):
                 timeout=35
             )
 
-            # Check if Photos returned a burst photo error
-            error_text = result.stderr.lower() if result.stderr else ""
-            if "burst" in error_text:
+            # Check result - errors are returned in stdout (from our 'return errMsg')
+            output = result.stdout.strip() if result.stdout else ""
+            error_text = (result.stderr.lower() if result.stderr else "") + output.lower()
+
+            if "burst" in error_text or "burst" in output.lower():
+                # Burst photo - skip it
                 skipped += 1
                 failed_files.append(str(img_path))
                 log_message(f"  SKIPPED (burst photo): {img_path.name}", log_file)
+            elif output and len(output) > 0:
+                # Some other error was returned
+                skipped += 1
+                failed_files.append(str(img_path))
+                log_message(f"  SKIPPED ({output}): {img_path.name}", log_file)
             elif result.returncode == 0:
+                # Success
                 imported += 1
                 if (i + 1) % 50 == 0:
                     print(f"    Processed {i + 1}/{batch_size} from this batch...")
             else:
+                # Failed for unknown reason
                 failed += 1
                 failed_files.append(str(img_path))
-                # Log the actual error from Photos for debugging
                 error_detail = result.stderr if result.stderr else "No error message"
                 log_message(f"  FAILED to import: {img_path.name} - Error: {error_detail}", log_file)
 
