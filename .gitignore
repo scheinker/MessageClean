@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Output files from the script
+iMessage_Video_Inventory.csv
+iMessage_Video_Decisions.json
+iMessage_Cleanup_Log.txt
+iMessage_Videos_REVIEW/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Test files
+test_videos/
