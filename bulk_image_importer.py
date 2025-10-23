@@ -254,7 +254,13 @@ def process_batch(batch, batch_num, total_batches, log_file):
                 timeout=30
             )
 
-            if result.returncode == 0:
+            # Check if Photos returned a burst photo error
+            error_text = result.stderr.lower() if result.stderr else ""
+            if "burst" in error_text:
+                skipped += 1
+                failed_files.append(str(img_path))
+                log_message(f"  SKIPPED (burst photo): {img_path.name}", log_file)
+            elif result.returncode == 0:
                 imported += 1
                 if (i + 1) % 50 == 0:
                     print(f"    Processed {i + 1}/{batch_size} from this batch...")
