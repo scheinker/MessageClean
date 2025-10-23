@@ -69,19 +69,73 @@ def analyze_videos():
     print("This may take a minute...")
     print()
 
-    # Find all video files
+    # First, show directory structure for debugging
+    print("Directory structure:")
+    subdirs = [d for d in ATTACHMENTS_DIR.iterdir() if d.is_dir()]
+    if subdirs:
+        print(f"  Found {len(subdirs)} subdirectories")
+        # Show first few subdirectories
+        for subdir in subdirs[:5]:
+            print(f"    - {subdir.name}/")
+        if len(subdirs) > 5:
+            print(f"    ... and {len(subdirs) - 5} more")
+    else:
+        print("  No subdirectories found")
+    print()
+
+    # Find all files (not just videos) for debugging
+    print("Scanning for all files...")
+    all_files = list(ATTACHMENTS_DIR.rglob('*'))
+    all_files = [f for f in all_files if f.is_file()]
+    print(f"  Total files found: {len(all_files)}")
+
+    if all_files:
+        # Show sample file paths to understand structure
+        print(f"  Sample file paths:")
+        for sample_file in all_files[:3]:
+            # Show relative path from Attachments dir
+            rel_path = sample_file.relative_to(ATTACHMENTS_DIR)
+            print(f"    {rel_path}")
+        print()
+
+    # Now find video files
+    print("Searching for video files...")
     video_files = []
     for ext in VIDEO_EXTENSIONS:
-        video_files.extend(ATTACHMENTS_DIR.rglob(f'*{ext}'))
-        video_files.extend(ATTACHMENTS_DIR.rglob(f'*{ext.upper()}'))
+        found_lower = list(ATTACHMENTS_DIR.rglob(f'*{ext}'))
+        found_upper = list(ATTACHMENTS_DIR.rglob(f'*{ext.upper()}'))
+        video_files.extend(found_lower)
+        video_files.extend(found_upper)
+        if found_lower or found_upper:
+            print(f"  {ext}: {len(found_lower) + len(found_upper)} files")
+
+    print()
 
     if not video_files:
+        print("=" * 70)
         print("No video files found in iMessage attachments.")
+        print("=" * 70)
+        print()
+        print(f"Searched in: {ATTACHMENTS_DIR}")
+        print(f"Total files found: {len(all_files)}")
+        print(f"Searched for extensions: {', '.join(VIDEO_EXTENSIONS)}")
+        print()
+        if all_files:
+            print("Files exist in this directory, but no videos were found.")
+            print("Sample files that were found:")
+            # Show file extensions of what was found
+            extensions = defaultdict(int)
+            for f in all_files:
+                ext = f.suffix.lower() if f.suffix else '(no extension)'
+                extensions[ext] += 1
+            for ext, count in sorted(extensions.items(), key=lambda x: x[1], reverse=True)[:10]:
+                print(f"  {ext}: {count} files")
         print()
         print("This might mean:")
         print("  - No videos have been received via iMessage")
         print("  - Videos are stored elsewhere")
         print("  - All videos have already been deleted")
+        print("  - Videos have different file extensions than expected")
         return
 
     # Analyze files
@@ -183,6 +237,28 @@ def analyze_videos():
             print(f"    Modified: {file_info['modified'].strftime('%Y-%m-%d %I:%M %p')}")
     else:
         print(f"No files >= {MIN_SIZE_MB}MB found.")
+    print()
+
+    # Directory depth analysis
+    print("-" * 70)
+    print("DIRECTORY STRUCTURE")
+    print("-" * 70)
+    depth_info = defaultdict(int)
+    sample_paths = {}
+    for video_data in all_files_data:
+        rel_path = video_data['path'].relative_to(ATTACHMENTS_DIR)
+        depth = len(rel_path.parts) - 1  # -1 because filename doesn't count as depth
+        depth_info[depth] += 1
+        if depth not in sample_paths:
+            sample_paths[depth] = rel_path
+
+    print(f"Videos are stored at various depths within {ATTACHMENTS_DIR.name}/:")
+    for depth in sorted(depth_info.keys()):
+        count = depth_info[depth]
+        pct = (count / total_count * 100) if total_count > 0 else 0
+        print(f"  Depth {depth}: {count:4} files ({pct:5.1f}%)")
+        if depth in sample_paths:
+            print(f"    Example: {sample_paths[depth]}")
     print()
 
     # Recommendations
