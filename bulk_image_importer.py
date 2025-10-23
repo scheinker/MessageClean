@@ -207,9 +207,19 @@ def validate_image(img_path):
     try:
         with Image.open(img_path) as img:
             img.verify()  # Verify it's a valid image
+
+        # Re-open to check image properties (verify() closes the file)
+        with Image.open(img_path) as img:
+            # Try to load the image data - this catches more corruption
+            img.load()
+
+            # Check if image has valid dimensions
+            if img.size[0] == 0 or img.size[1] == 0:
+                return False, "zero dimensions"
+
         return True, None
-    except Exception:
-        return False, "invalid/corrupted"
+    except Exception as e:
+        return False, f"invalid/corrupted ({type(e).__name__})"
 
 
 def process_batch(batch, batch_num, total_batches, log_file):
