@@ -241,19 +241,24 @@ def process_batch(batch, batch_num, total_batches, log_file):
 
         try:
             # Import to Photos using AppleScript
-            # skip check duplicates true = no dialogs, Photos will handle duplicates after import
+            # skip check duplicates true = no dialogs for duplicates
+            # without interaction = suppress error dialogs
             # Escape quotes in filename for AppleScript
             safe_path = str(img_path).replace('"', '\\"')
             script = f'''
                 tell application "Photos"
-                    import POSIX file "{safe_path}" skip check duplicates true
+                    with timeout of 30 seconds
+                        try
+                            import POSIX file "{safe_path}" skip check duplicates true
+                        end try
+                    end timeout
                 end tell
             '''
             result = subprocess.run(
                 ['osascript', '-e', script],
                 capture_output=True,
                 text=True,
-                timeout=30
+                timeout=35
             )
 
             # Check if Photos returned a burst photo error
@@ -269,7 +274,9 @@ def process_batch(batch, batch_num, total_batches, log_file):
             else:
                 failed += 1
                 failed_files.append(str(img_path))
-                log_message(f"  FAILED to import: {img_path.name}", log_file)
+                # Log the actual error from Photos for debugging
+                error_detail = result.stderr if result.stderr else "No error message"
+                log_message(f"  FAILED to import: {img_path.name} - Error: {error_detail}", log_file)
 
         except Exception as e:
             failed += 1
