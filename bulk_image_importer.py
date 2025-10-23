@@ -24,6 +24,7 @@ import shutil
 from pathlib import Path
 from datetime import datetime
 from collections import defaultdict
+from PIL import Image
 
 # Configuration
 ATTACHMENTS_DIR = Path.home() / 'Library' / 'Messages' / 'Attachments'
@@ -180,6 +181,19 @@ def confirm_proceed():
             print("Please enter 'yes' or 'no'")
 
 
+def validate_image(img_path):
+    """
+    Check if an image file is valid and can be opened
+    Returns True if valid, False otherwise
+    """
+    try:
+        with Image.open(img_path) as img:
+            img.verify()  # Verify it's a valid image
+        return True
+    except Exception:
+        return False
+
+
 def process_batch(batch, batch_num, total_batches, log_file):
     """
     Process one batch: import to Photos, then immediately move from Messages
@@ -190,13 +204,22 @@ def process_batch(batch, batch_num, total_batches, log_file):
     failed = 0
     moved = 0
     failed_files = []
+    skipped = 0
 
     print(f"\nBatch {batch_num}/{total_batches} ({batch_size} images)")
-    print(f"  Step 1/2: Importing to Photos...")
+    print(f"  Step 1/2: Validating and importing to Photos...")
 
     # Import each image in the batch
     for i, img_data in enumerate(batch):
         img_path = img_data['path']
+
+        # First, validate the image file
+        if not validate_image(img_path):
+            skipped += 1
+            failed_files.append(str(img_path))
+            log_message(f"  SKIPPED (invalid/corrupted): {img_path.name}", log_file)
+            continue
+
         try:
             # Import to Photos using AppleScript
             # skip check duplicates true = no dialogs, Photos will handle duplicates after import
@@ -215,7 +238,7 @@ def process_batch(batch, batch_num, total_batches, log_file):
             if result.returncode == 0:
                 imported += 1
                 if (i + 1) % 50 == 0:
-                    print(f"    Imported {i + 1}/{batch_size} from this batch...")
+                    print(f"    Processed {i + 1}/{batch_size} from this batch...")
             else:
                 failed += 1
                 failed_files.append(str(img_path))
@@ -251,9 +274,12 @@ def process_batch(batch, batch_num, total_batches, log_file):
         except Exception as e:
             log_message(f"  ERROR moving {img_path.name}: {e}", log_file)
 
-    print(f"  ✓ Batch complete: {imported} imported, {moved} moved, {failed} failed")
+    if skipped > 0:
+        print(f"  ✓ Batch complete: {imported} imported, {moved} moved, {skipped} skipped (invalid), {failed} failed")
+    else:
+        print(f"  ✓ Batch complete: {imported} imported, {moved} moved, {failed} failed")
 
-    return imported, failed, moved, failed_files
+    return imported, failed, moved, skipped, failed_files
 
 
 def process_all_images_batched(image_files, log_file):
@@ -278,6 +304,7 @@ def process_all_images_batched(image_files, log_file):
     total_imported = 0
     total_failed = 0
     total_moved = 0
+    total_skipped = 0
     all_failed_files = []
 
     print()
@@ -288,18 +315,20 @@ def process_all_images_batched(image_files, log_file):
     print(f"Batch size: {batch_size} images (~850 MB)")
     print(f"Total batches: {len(batches)}")
     print()
-    print("Each batch: Import to Photos → Move from Messages → Free up space")
+    print("Each batch: Validate → Import to Photos → Move from Messages → Free up space")
     print("This prevents disk from filling up!")
+    print("Invalid/corrupted files will be skipped automatically (no dialogs).")
     print()
 
     for batch_num, batch in enumerate(batches, 1):
-        imported, failed, moved, failed_files = process_batch(
+        imported, failed, moved, skipped, failed_files = process_batch(
             batch, batch_num, len(batches), log_file
         )
 
         total_imported += imported
         total_failed += failed
         total_moved += moved
+        total_skipped += skipped
         all_failed_files.extend(failed_files)
 
         # Small delay between batches
@@ -308,9 +337,12 @@ def process_all_images_batched(image_files, log_file):
             time.sleep(1)
 
     log_message("", log_file)
-    log_message(f"Processing complete: {total_imported} imported, {total_moved} moved, {total_failed} failed", log_file)
+    if total_skipped > 0:
+        log_message(f"Processing complete: {total_imported} imported, {total_moved} moved, {total_skipped} skipped (invalid), {total_failed} failed", log_file)
+    else:
+        log_message(f"Processing complete: {total_imported} imported, {total_moved} moved, {total_failed} failed", log_file)
 
-    return total_imported, total_failed, total_moved, all_failed_files
+    return total_imported, total_failed, total_moved, total_skipped, all_failed_files
 
 
 def main():
@@ -352,7 +384,7 @@ def main():
         print()
 
         # Process all images in batches (import → move → repeat)
-        imported, failed, moved, failed_files = process_all_images_batched(
+        imported, failed, moved, skipped, failed_files = process_all_images_batched(
             image_files, IMPORT_LOG
         )
 
@@ -368,6 +400,8 @@ def main():
         log_message(f"Total images found: {len(image_files):,}", IMPORT_LOG)
         log_message(f"Successfully imported to Photos: {imported:,}", IMPORT_LOG)
         log_message(f"Successfully moved to review folder: {moved:,}", IMPORT_LOG)
+        if skipped > 0:
+            log_message(f"Skipped (invalid/corrupted files): {skipped:,}", IMPORT_LOG)
         log_message(f"Failed (not imported or moved): {failed:,}", IMPORT_LOG)
         log_message("", IMPORT_LOG)
         log_message(f"Review folder: {REVIEW_DIR}", IMPORT_LOG)
@@ -395,6 +429,8 @@ def main():
         print(f"Total images: {len(image_files):,}")
         print(f"Imported to Photos: {imported:,}")
         print(f"Moved to review folder: {moved:,}")
+        if skipped > 0:
+            print(f"Skipped (invalid/corrupted): {skipped:,}")
         print()
         print(f"Review folder: {REVIEW_DIR}")
         print(f"Detailed log: {IMPORT_LOG}")
