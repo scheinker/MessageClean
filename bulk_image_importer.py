@@ -203,6 +203,16 @@ def validate_image(img_path):
     if is_burst_photo(img_path):
         return False, "burst photo"
 
+    # Check file size - if 0 bytes or too small, skip
+    try:
+        file_size = img_path.stat().st_size
+        if file_size == 0:
+            return False, "zero byte file"
+        if file_size < 100:  # Less than 100 bytes is suspicious
+            return False, "file too small"
+    except Exception:
+        return False, "cannot read file"
+
     # Check if file is valid/not corrupted
     try:
         with Image.open(img_path) as img:
@@ -216,6 +226,10 @@ def validate_image(img_path):
             # Check if image has valid dimensions
             if img.size[0] == 0 or img.size[1] == 0:
                 return False, "zero dimensions"
+
+            # Check for valid mode
+            if img.mode not in ['RGB', 'RGBA', 'L', 'LA', 'CMYK', 'YCbCr', 'P']:
+                return False, f"unsupported mode: {img.mode}"
 
         return True, None
     except Exception as e:
@@ -252,18 +266,21 @@ def process_batch(batch, batch_num, total_batches, log_file):
         try:
             # Import to Photos using AppleScript
             # skip check duplicates true = no dialogs for duplicates
-            # Escape quotes in filename for AppleScript
-            safe_path = str(img_path).replace('"', '\\"')
+            # Escape quotes and backslashes for AppleScript
+            safe_path = str(img_path).replace('\\', '\\\\').replace('"', '\\"')
+
+            # Use a simpler approach - just try to import and check return code
             script = f'''
-                tell application "Photos"
-                    with timeout of 30 seconds
-                        try
+                try
+                    tell application "Photos"
+                        with timeout of 30 seconds
                             import POSIX file "{safe_path}" skip check duplicates true
-                        on error errMsg
-                            return errMsg
-                        end try
-                    end timeout
-                end tell
+                        end timeout
+                    end tell
+                    return "success"
+                on error errMsg number errNum
+                    return errMsg
+                end try
             '''
             result = subprocess.run(
                 ['osascript', '-e', script],
@@ -272,27 +289,31 @@ def process_batch(batch, batch_num, total_batches, log_file):
                 timeout=35
             )
 
-            # Check result - errors are returned in stdout (from our 'return errMsg')
+            # Check result - errors are returned in stdout
             output = result.stdout.strip() if result.stdout else ""
-            error_text = (result.stderr.lower() if result.stderr else "") + output.lower()
+            output_lower = output.lower()
 
-            if "burst" in error_text or "burst" in output.lower():
+            if output == "success" or output == "":
+                # Success - either explicit success or no output means it worked
+                imported += 1
+                if (i + 1) % 50 == 0:
+                    print(f"    Processed {i + 1}/{batch_size} from this batch...")
+            elif "burst" in output_lower:
                 # Burst photo - skip it
                 skipped += 1
                 failed_files.append(str(img_path))
                 log_message(f"  SKIPPED (burst photo): {img_path.name}", log_file)
-            elif "media item id" in output.lower():
-                # Photo is already in Photos! This is success, not an error
-                # Photos returns the media item ID when photo already exists
+            elif "media item id" in output_lower:
+                # Photo is already in Photos! This is success
                 imported += 1
                 if (i + 1) % 50 == 0:
                     print(f"    Processed {i + 1}/{batch_size} from this batch...")
-            elif result.returncode == 0 and len(output) == 0:
-                # Success - imported
-                imported += 1
-                if (i + 1) % 50 == 0:
-                    print(f"    Processed {i + 1}/{batch_size} from this batch...")
-            elif output and len(output) > 0:
+            elif "unknown error" in output_lower or "cannot import" in output_lower:
+                # Photos can't import this file - skip it
+                skipped += 1
+                failed_files.append(str(img_path))
+                log_message(f"  SKIPPED (Photos rejected: {output}): {img_path.name}", log_file)
+            elif len(output) > 0:
                 # Some other error was returned
                 skipped += 1
                 failed_files.append(str(img_path))
