@@ -5,18 +5,43 @@
 
 A suite of safe tools for cleaning up iMessage storage on macOS by handling duplicate images and videos that are already stored in your Photos library.
 
+## Who This Is For
+
+**This tool is designed for a very specific situation:**
+
+✅ **You should use this if:**
+- Your Mac is **critically low on storage** (5-20 GB free or less)
+- System Settings shows **Messages using 50-150+ GB** of space
+- You have **thousands of images/videos shared via iMessage** (especially baby photos, family videos)
+- Many of these images/videos are **already saved in your Photos library**
+- You're paying for storage **twice** (once in Messages, once in Photos)
+- You can't afford to create duplicate copies during cleanup (no extra 50 GB available)
+- You need to **safely verify** that items are in Photos before deleting from Messages
+
+❌ **You should NOT use this if:**
+- You have plenty of free disk space (50+ GB free) - just use general Mac cleaners
+- Messages only uses 10-20 GB - not worth the effort
+- You don't use Photos.app to organize media
+- You want a one-click automated solution - this requires human verification
+- Your Messages storage is mostly documents/PDFs, not photos/videos
+
+**The Niche**: This tool was built for parents with young kids who share tons of photos/videos via iMessage family chats, where the disk is nearly full and every gigabyte matters. It uses batch processing to avoid disk space exhaustion during cleanup.
+
 ## What This Does
 
 These tools help free up storage space (potentially 40-60 GB!) on your Mac by:
-1. **Bulk importing images to Photos** (handles duplicates automatically)
+1. **Bulk importing images to Photos** in batches (prevents disk from filling up)
 2. **Smart video cleanup** with hash-based verification to prove videos are already in Photos
 3. **Nothing is permanently deleted** - everything moved to review folders first
+4. **Zero additional disk space required** - moves files instead of copying them
 
-Designed with multiple safety layers to protect precious family photos and videos.
+Designed with multiple safety layers to protect precious family photos and videos, and specifically handles the constraint of having very little free disk space.
 
 ## The Problem
 
 iMessage stores ALL attachments locally forever. Over time, this can use 100+ GB of storage, even though most of these images/videos are also in your Photos library. You're paying twice - once in Messages, once in Photos.
+
+**The challenge**: When your disk is nearly full (6-10 GB free), traditional cleanup tools fail because they try to create duplicate copies during processing, which fills up your disk and crashes. This tool processes in small batches (500 images at a time) to keep disk usage minimal.
 
 ## The Solution: Two-Phase Cleanup
 
@@ -30,11 +55,13 @@ iMessage stores ALL attachments locally forever. Over time, this can use 100+ GB
 
 ### Phase 1: Bulk Image Importer
 **`bulk_image_importer.py`** - Handle thousands of images quickly (30-40 GB potential savings)
-- Scans all images in iMessage attachments
-- Bulk imports to Photos (Photos detects duplicates automatically)
-- Moves images to review folder
-- You verify, then manually delete review folder
-- **Time**: 30-60 minutes total
+- **Batch processing** - processes 500 images at a time to avoid filling disk
+- Each batch: Import to Photos → Move from Messages → Repeat
+- Keeps extra disk usage to only ~1-2 GB (instead of 40+ GB)
+- **Critical for low-storage situations** (6-20 GB free)
+- Automatically skips corrupted files and burst photos (no dialogs)
+- Photos detects duplicates automatically - merge them afterward
+- **Time**: 10-15 minutes for ~25,000 images
 
 ### Phase 2: Smart Video Cleaner
 **`smart_video_cleaner.py`** - Handle videos with verification (10-30 GB potential savings)
@@ -61,20 +88,24 @@ iMessage stores ALL attachments locally forever. Over time, this can use 100+ GB
 
 - macOS (tested on macOS 10.15+)
 - Python 3 (built into macOS)
+- **Minimum 5-6 GB free disk space** (for batch processing buffer)
 - iMessage attachments stored locally
 - Photos app with local library
+- Pillow library for image validation: `pip3 install Pillow`
 
 ## Installation
 
-No installation needed! The script uses only standard Python libraries included with macOS.
-
-### Verify Python 3 is Available
+### Install Required Dependencies
 
 ```bash
+# Verify Python 3 is available
 python3 --version
+
+# Install Pillow for image validation
+pip3 install Pillow
 ```
 
-You should see something like `Python 3.9.6` or higher.
+You should see Python version `3.9.6` or higher.
 
 ## Important: Grant Full Disk Access
 
@@ -172,16 +203,25 @@ python3 bulk_image_importer.py
 **What happens**:
 1. Shows summary of images found
 2. Asks for confirmation
-3. Bulk imports all images to Photos
-   - Photos automatically detects duplicates
-   - Takes 30-60 minutes depending on volume
-4. Moves images from Messages to `~/Desktop/iMessage_Images_REVIEW/`
+3. **Processes in batches of 500 images** (~850 MB at a time):
+   - Import batch to Photos
+   - Immediately move batch from Messages
+   - Repeat for next batch
+   - **This prevents disk from filling up!**
+   - Automatically skips corrupted files and burst photos
+   - Takes 10-15 minutes for ~25,000 images
+4. Images moved to `~/Desktop/iMessage_Images_REVIEW/`
 5. Creates log: `~/Desktop/iMessage_Image_Import_Log.txt`
 
 **After it completes**:
 1. Open Photos - verify images are there
-2. Check review folder - spot check a few images
-3. When satisfied, manually delete review folder:
+2. **Merge duplicate photos** (IMPORTANT - takes ~5 minutes):
+   - In Photos, click "Albums" in sidebar
+   - Scroll to "Utilities" section
+   - Click "Duplicates" album
+   - Click "Merge" for each duplicate set (or "Merge All")
+3. Check review folder - spot check a few images
+4. When satisfied, manually delete review folder:
    ```bash
    rm -rf ~/Desktop/iMessage_Images_REVIEW
    ```
