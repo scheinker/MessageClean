@@ -408,6 +408,13 @@ def process_all_images_batched(image_files, log_file):
 def main():
     """Main execution"""
     try:
+        # Parse command line arguments
+        import argparse
+        parser = argparse.ArgumentParser(description='Bulk import iMessage images to Photos')
+        parser.add_argument('--max-images', type=int, default=None,
+                          help='Maximum number of images to process (default: all)')
+        args = parser.parse_args()
+
         # Initialize log
         if IMPORT_LOG.exists():
             IMPORT_LOG.unlink()
@@ -421,6 +428,14 @@ def main():
             return 1
 
         image_files, extension_stats = result
+
+        # Limit number of images if requested
+        if args.max_images and args.max_images < len(image_files):
+            print()
+            print(f"NOTE: Processing only first {args.max_images:,} images (--max-images={args.max_images})")
+            print(f"      {len(image_files) - args.max_images:,} images will be processed in next run")
+            print()
+            image_files = image_files[:args.max_images]
 
         # Show summary
         if not show_summary(image_files, extension_stats):
