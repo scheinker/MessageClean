@@ -45,10 +45,6 @@ iMessage stores ALL attachments locally forever. Over time, this can use 100+ GB
 - You approve each decision
 - **Time**: 20-40 minutes for 40 largest videos
 
-### Legacy Tools (For Reference)
-- **`assess_imessage_videos.py`** - Video-only assessment
-- **`imessage_video_cleaner.py`** - Original video cleaner (impractical for 1000+ videos)
-
 ## Safety Features
 
 - **No immediate deletion** - Files are moved to review folders, never permanently deleted by the script
