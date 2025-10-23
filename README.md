@@ -11,13 +11,15 @@ This script helps free up storage space on your Mac by identifying and safely re
 
 ## Safety Features
 
-- **No immediate deletion** - Files are moved to a review folder, never permanently deleted
-- **Full backup** - All files are copied to a backup folder before any action
+- **No immediate deletion** - Files are moved to review folders, never permanently deleted by the script
+- **No disk space duplication** - Files are moved (not copied), requiring zero additional disk space
+- **Review folders are your backup** - Files remain in review folders until you manually delete them
 - **Human review** - You manually approve every single video
 - **Import verification** - Checks that Photos import succeeded before moving files
 - **Detailed logging** - Complete audit trail of all actions
 - **Resume capability** - Can pause and continue later
 - **Conservative matching** - Only processes videos you explicitly approve
+- **Easy undo** - Just move files back from review folders if needed
 
 ## Requirements
 
@@ -113,16 +115,16 @@ Proceed with execution? (yes/no):
 
 Type `yes` to proceed. The script will:
 
-1. **Create backup folder**: `~/Desktop/iMessage_Videos_REVIEW/BACKUP_originals/`
-2. **Copy all files to backup first** (nothing happens until backup is complete)
-3. For each video marked for processing:
+1. For each video marked for processing (one at a time):
    - If "Import First": Import to Photos, wait 10 seconds, verify success
    - If import fails: Skip that video and continue
-   - If successful: Move (not delete) from iMessage to review folder
-4. **Move files to review folders**:
+   - If successful: Move (not copy!) from iMessage to review folder
+2. **Move files to review folders**:
    - `already_in_photos/` - Videos that were already in Photos
    - `newly_imported/` - Videos that were just imported
-5. **Save detailed log**: `~/Desktop/iMessage_Cleanup_Log.txt`
+3. **Save detailed log**: `~/Desktop/iMessage_Cleanup_Log.txt`
+
+**IMPORTANT**: Files are MOVED (not copied) to save disk space. No backup copies are created. The review folders themselves serve as your backup until you manually delete them.
 
 ### Step 6: Manual Verification (Critical!)
 
@@ -135,22 +137,22 @@ Type `yes` to proceed. The script will:
 
 ### Step 7: Final Cleanup (When Ready)
 
-Only after you're completely satisfied:
+Only after you're completely satisfied everything is safe:
 
 ```bash
-# Delete the review folders (keeps backup)
+# Delete the entire review folder
+rm -rf ~/Desktop/iMessage_Videos_REVIEW
+```
+
+Or delete individual folders:
+
+```bash
+# Delete specific folders
 rm -rf ~/Desktop/iMessage_Videos_REVIEW/already_in_photos
 rm -rf ~/Desktop/iMessage_Videos_REVIEW/newly_imported
 ```
 
-**Keep the backup folder** (`BACKUP_originals`) for as long as you want - a few days, weeks, or months.
-
-When you're ready to delete the backup:
-
-```bash
-# Delete backup (ONLY when you're certain everything is safe)
-rm -rf ~/Desktop/iMessage_Videos_REVIEW/BACKUP_originals
-```
+**IMPORTANT**: There is no separate backup folder. The review folders ARE your backup. Once you delete them, the videos are gone from iMessage (but still in Photos). If you're nervous, wait a few weeks before deleting.
 
 ## Files Created
 
@@ -196,16 +198,17 @@ You may need to grant Terminal "Full Disk Access" in System Preferences > Securi
 ### Import to Photos fails
 
 If Photos import fails for a video:
-- The script will skip that video and continue
+- The script will skip that video and leave it in iMessage (not moved)
 - Check the log file for details
-- You can manually import the video from the backup folder later
+- The video remains in its original location for safety
+- You can manually import it later
 
 ### Videos are duplicated in Photos after import
 
 Photos should automatically detect duplicates. If it doesn't:
 - Check that "skip check duplicates false" is working
 - You can manually delete duplicates in Photos
-- All original files are safe in the backup folder
+- All moved files are safe in the review folders
 
 ## Configuration
 
@@ -219,18 +222,20 @@ VIDEO_EXTENSIONS = ['.mov', '.mp4', '.m4v', '.avi']  # File types to process
 ## Safety Notes
 
 - **This script never permanently deletes files** - It only moves them to review folders
-- **All files are backed up first** - Copies made before any action
+- **No disk space duplication** - Files are moved (not copied) to save space
+- **Review folders are your backup** - Nothing is deleted until you manually delete the folders
 - **You control everything** - Human approval for every single video
 - **Logging** - Complete record of what was done
-- **Undo-friendly** - Just move files back from review folders
+- **Undo-friendly** - Just move files back from review folders to restore
 
 ## What Gets Freed Up
 
 The script only processes videos ≥10MB. After completion:
 - Videos are removed from `~/Library/Messages/Attachments/`
 - iMessage app will show less storage usage
-- Videos remain safely in Photos and backup folders
-- You can verify everything before permanent deletion
+- Videos remain safely in Photos and review folders
+- No disk space is saved until you manually delete the review folders
+- You can verify everything before permanently deleting the review folders
 
 ## Technical Details
 
@@ -246,13 +251,14 @@ If you encounter issues:
 
 1. Check the log file: `~/Desktop/iMessage_Cleanup_Log.txt`
 2. Review the inventory CSV for details about what was found
-3. The backup folder contains all original files if you need to restore
+3. The review folders contain all moved files if you need to restore them
 
 ## Important Reminders
 
 - **These are precious family videos** - Take your time reviewing
-- **Don't delete backups immediately** - Wait a few weeks to be safe
+- **Don't delete review folders immediately** - Wait a few weeks to be safe
 - **Spot-check Photos** - Verify videos are actually there before final deletion
+- **Review folders are your only backup** - Once deleted, videos are only in Photos
 - **When in doubt, choose "Skip"** - Better safe than sorry
 
 ## License

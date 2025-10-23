@@ -3,13 +3,17 @@
 iMessage Video Cleaner - Safe Duplicate Removal Tool
 
 This script helps safely remove duplicate videos from iMessage attachments
-that are already stored in Photos, with full human review and backup.
+that are already stored in Photos, with full human review.
 
 Phases:
 1. Discovery - Scan iMessage attachments for videos ≥10MB
 2. Photos Check - Query Photos library to identify duplicates
 3. Interactive Review - GUI to review and mark each video
-4. Safe Execution - Backup, import, and move (not delete) files
+4. Safe Execution - Import (if needed) and move to review folders
+
+IMPORTANT: No backup copies are created to save disk space.
+Files are moved (not deleted) to review folders which serve as the backup.
+Nothing is permanently deleted until you manually delete the review folders.
 
 Author: Created for safe management of precious family videos
 """
@@ -444,7 +448,7 @@ class ReviewGUI:
 
 
 class SafeExecution:
-    """Phase 4: Safely execute decisions with backup and verification"""
+    """Phase 4: Safely execute decisions - move files to review folders"""
 
     def __init__(self, videos: List[VideoFile], review_dir: Path, log_file: Path):
         self.videos = videos
@@ -453,11 +457,11 @@ class SafeExecution:
         self.log_entries = []
 
         # Create review directory structure
-        self.backup_dir = review_dir / 'BACKUP_originals'
         self.already_in_photos_dir = review_dir / 'already_in_photos'
         self.newly_imported_dir = review_dir / 'newly_imported'
+        self.kept_in_imessage_dir = review_dir / 'kept_in_imessage'
 
-        for directory in [self.backup_dir, self.already_in_photos_dir, self.newly_imported_dir]:
+        for directory in [self.already_in_photos_dir, self.newly_imported_dir, self.kept_in_imessage_dir]:
             directory.mkdir(parents=True, exist_ok=True)
 
     def log(self, message: str):
@@ -538,16 +542,7 @@ class SafeExecution:
             try:
                 self.log(f"[{i+1}/{total}] Processing: {video.filename}")
 
-                # Step 1: Create backup
-                backup_path = self.backup_dir / video.filename
-                # Handle duplicate filenames
-                if backup_path.exists():
-                    backup_path = self.backup_dir / f"{video.path.stem}_{i}{video.path.suffix}"
-
-                self.log(f"  Creating backup: {backup_path.name}")
-                shutil.copy2(video.path, backup_path)
-
-                # Step 2: Import if needed
+                # Step 1: Import if needed
                 if video.decision == 'import_remove':
                     self.log(f"  Importing to Photos...")
                     if not self.import_to_photos(video.path):
@@ -564,13 +559,13 @@ class SafeExecution:
                 else:
                     target_dir = self.already_in_photos_dir
 
-                # Step 3: Move from iMessage to review folder
+                # Step 2: Move from iMessage to review folder
                 target_path = target_dir / video.filename
                 # Handle duplicate filenames
                 if target_path.exists():
                     target_path = target_dir / f"{video.path.stem}_{i}{video.path.suffix}"
 
-                self.log(f"  Moving to review folder: {target_dir.name}/{target_path.name}")
+                self.log(f"  Moving from iMessage to: {target_dir.name}/{target_path.name}")
                 shutil.move(str(video.path), str(target_path))
 
                 self.log(f"  ✓ Completed: {video.filename}")
@@ -588,13 +583,15 @@ class SafeExecution:
         self.log("Execution Complete!")
         self.log("=" * 70)
         self.log(f"Review folders created at: {self.review_dir}")
-        self.log(f"Backup folder: {self.backup_dir}")
+        self.log(f"  - Already in Photos: {self.already_in_photos_dir}")
+        self.log(f"  - Newly imported: {self.newly_imported_dir}")
         self.log("")
         self.log("NEXT STEPS:")
         self.log("1. Open the review folders and verify the videos")
         self.log("2. Check Photos app to confirm videos are present")
-        self.log("3. When satisfied, manually delete the review folders")
-        self.log("4. Keep the backup folder as long as you want for safety")
+        self.log("3. These folders ARE your backup - nothing permanently deleted yet")
+        self.log("4. When satisfied, manually delete the review folders")
+        self.log("5. If you need to undo, simply move files back to iMessage attachments")
         self.log("")
 
         self.save_log()
@@ -685,7 +682,7 @@ def main():
             print("No videos marked for processing. Exiting.")
             return
 
-        response = input("Proceed with execution? This will create backups and move files. (yes/no): ")
+        response = input("Proceed with execution? This will move files to review folders. (yes/no): ")
         if response.lower() != 'yes':
             print("Execution cancelled. Your decisions are saved and you can resume later.")
             return
@@ -698,10 +695,10 @@ def main():
         print("=" * 70)
         print(f"\nPlease review the results:")
         print(f"  Review folders: {REVIEW_DIR}")
-        print(f"  Backup folder: {executor.backup_dir}")
         print(f"  Detailed log: {CLEANUP_LOG}")
-        print("\nWhen you're satisfied, manually delete the review folders.")
-        print("Keep the backup folder as long as you want for extra safety.")
+        print("\nIMPORTANT: The review folders ARE your backup.")
+        print("Nothing is permanently deleted until you manually delete those folders.")
+        print("To undo, simply move files back to iMessage attachments folder.")
         print("")
 
     except KeyboardInterrupt:
