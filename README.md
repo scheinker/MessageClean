@@ -1,34 +1,53 @@
-# iMessage Video Cleaner
+# MessageClean - iMessage Storage Cleanup Tools
 
 > **⚠️ WARNING: UNTESTED SOFTWARE**
-> This tool has not yet been tested in production. It was created to help manage iMessage video attachments, but **has not been validated** on real systems with real data. If you found this repository randomly, please **do not use this tool** until this notice is removed. Use at your own risk.
+> These tools have not yet been fully tested in production. Created to help manage iMessage storage, but **not validated** on all systems. If you found this repository randomly, please **do not use** until this notice is removed. Use at your own risk.
 
-A safe tool for removing duplicate videos from iMessage attachments that are already stored in your Photos library.
+A suite of safe tools for cleaning up iMessage storage on macOS by handling duplicate images and videos that are already stored in your Photos library.
 
 ## What This Does
 
-This script helps free up storage space on your Mac by identifying and safely removing video files from iMessage attachments that are duplicates of videos already in your Photos library. It's designed with multiple safety layers to protect precious family videos.
+These tools help free up storage space (potentially 40-60 GB!) on your Mac by:
+1. **Bulk importing images to Photos** (handles duplicates automatically)
+2. **Smart video cleanup** with hash-based verification to prove videos are already in Photos
+3. **Nothing is permanently deleted** - everything moved to review folders first
 
-## Scripts Included
+Designed with multiple safety layers to protect precious family photos and videos.
 
-1. **`assess_all_imessage_files.py`** - **START HERE!** Comprehensive analysis (RECOMMENDED FIRST STEP)
-   - Analyzes ALL file types, not just videos
-   - Shows what's actually taking up storage (videos? images? documents?)
-   - Identifies top storage consumers
-   - Recommends cleanup strategy based on findings
-   - Takes ~1-2 minutes to run
+## The Problem
 
-2. **`assess_imessage_videos.py`** - Video-specific assessment
-   - Read-only analysis of video attachments only
-   - Shows video sizes and distribution
-   - Use if you know videos are the problem
-   - Takes ~30 seconds to run
+iMessage stores ALL attachments locally forever. Over time, this can use 100+ GB of storage, even though most of these images/videos are also in your Photos library. You're paying twice - once in Messages, once in Photos.
 
-3. **`imessage_video_cleaner.py`** - Interactive video cleaning tool
-   - Interactive GUI for reviewing each video
-   - Safely moves duplicates to review folders
-   - Human approval required for every file
-   - **Warning**: May not be practical for 1000+ videos (would take hours)
+## The Solution: Two-Phase Cleanup
+
+### Assessment Tool (Run First!)
+**`assess_all_imessage_files.py`** - Understand what's taking up space
+- Analyzes ALL file types (videos, images, documents, audio)
+- Shows storage breakdown by category
+- Identifies top 30 largest files
+- Recommends cleanup strategy
+- **Run this first to understand your situation!**
+
+### Phase 1: Bulk Image Importer
+**`bulk_image_importer.py`** - Handle thousands of images quickly (30-40 GB potential savings)
+- Scans all images in iMessage attachments
+- Bulk imports to Photos (Photos detects duplicates automatically)
+- Moves images to review folder
+- You verify, then manually delete review folder
+- **Time**: 30-60 minutes total
+
+### Phase 2: Smart Video Cleaner
+**`smart_video_cleaner.py`** - Handle videos with verification (10-30 GB potential savings)
+- Hash-based verification - proves video exists in Photos
+- Interactive GUI to review each video
+- Start with large videos (≥100MB) for quick wins
+- Shows Photos match status for each video
+- You approve each decision
+- **Time**: 20-40 minutes for 40 largest videos
+
+### Legacy Tools (For Reference)
+- **`assess_imessage_videos.py`** - Video-only assessment
+- **`imessage_video_cleaner.py`** - Original video cleaner (impractical for 1000+ videos)
 
 ## Safety Features
 
@@ -132,141 +151,162 @@ Quick wins - manually review top 30 largest files
 
 **Run this first** to understand your situation before deciding on a cleanup strategy!
 
-## How to Use the Full Cleaner
+## Complete Workflow - Step by Step
 
-### Step 1: Run the Script
+### Step 0: Assessment (REQUIRED FIRST STEP)
 
 ```bash
-cd /Users/matte/MessageClean
-python3 imessage_video_cleaner.py
+cd MessageClean
+python3 assess_all_imessage_files.py
 ```
 
-### Step 2: Phase 1 - Discovery (Automatic)
+This shows you:
+- What's taking up space (images? videos?)
+- How much you could potentially save
+- Which cleanup approach makes sense
 
-The script will:
-- Scan `~/Library/Messages/Attachments/` for videos ≥10MB
-- Calculate SHA-256 hash for each video (may take a few minutes)
-- Save inventory to `~/Desktop/iMessage_Video_Inventory.csv`
+### Step 1: Phase 1 - Bulk Image Import
 
-You'll see output like:
-```
-Found 147 videos totaling 3,245 MB
-Calculating file hashes...
-✓ Phase 1 complete
-```
+**Purpose**: Handle 25,000+ images (30-40 GB potential savings)
 
-### Step 3: Phase 2 - Photos Check (Automatic)
-
-The script attempts to check if videos are already in Photos. Currently uses a conservative approach that assumes videos are NOT in Photos unless certain.
-
-### Step 4: Phase 3 - Interactive Review (Manual)
-
-A window will open showing one video at a time:
-
-```
-┌─────────────────────────────────────┐
-│  Video 23 of 147                    │
-│  ━━━━━━━━━━░░░░░░░░░░░ 15%         │
-│                                     │
-│  Filename: IMG_1234.MOV             │
-│  Size: 45.3 MB                      │
-│  Date: Jan 15, 2023                 │
-│  Status: ✗ Not in Photos            │
-│                                     │
-│  [✓ Mark for Removal]               │
-│  [📥 Import to Photos First]        │
-│  [⊘ Skip - Keep in iMessage]        │
-│                                     │
-│  [💾 Save Progress & Quit]          │
-└─────────────────────────────────────┘
+```bash
+python3 bulk_image_importer.py
 ```
 
-For each video, choose:
+**What happens**:
+1. Shows summary of images found
+2. Asks for confirmation
+3. Bulk imports all images to Photos
+   - Photos automatically detects duplicates
+   - Takes 30-60 minutes depending on volume
+4. Moves images from Messages to `~/Desktop/iMessage_Images_REVIEW/`
+5. Creates log: `~/Desktop/iMessage_Image_Import_Log.txt`
 
-- **Mark for Removal** - Video is already in Photos, safe to remove from iMessage
-- **Import to Photos First** - Add to Photos, then remove from iMessage
-- **Skip** - Keep in iMessage, don't touch it
+**After it completes**:
+1. Open Photos - verify images are there
+2. Check review folder - spot check a few images
+3. When satisfied, manually delete review folder:
+   ```bash
+   rm -rf ~/Desktop/iMessage_Images_REVIEW
+   ```
 
-**Tips:**
-- You can click the file path to open in Finder and preview the video
-- Click "Save Progress & Quit" at any time to resume later
-- Your decisions are saved to `~/Desktop/iMessage_Video_Decisions.json`
+### Step 2: Phase 2 - Smart Video Cleanup
 
-### Step 5: Phase 4 - Safe Execution (Semi-Automatic)
+**Purpose**: Handle videos with verification (start with largest for quick wins)
 
-After reviewing all videos, the script will show a summary:
-
+**Start with videos ≥100MB (recommended)**:
+```bash
+python3 smart_video_cleaner.py --min-size=100
 ```
-Ready to process:
-  - 55 videos to remove (already in Photos)
-  - 23 videos to import then remove
-  - 69 videos to keep in iMessage
 
-Proceed with execution? (yes/no):
-```
+**What happens**:
+1. Scans for videos ≥100MB (typically 30-40 videos)
+2. Calculates file hashes
+3. Checks if each video exists in Photos (by size + filename)
+4. Opens interactive GUI showing each video:
+   - Video info (name, size, date)
+   - Photos match status: "✓ FOUND IN PHOTOS" or "✗ NOT FOUND"
+   - Three buttons:
+     - "Already in Photos - Safe to Remove" (if matched)
+     - "Import to Photos First, Then Remove" (if not matched)
+     - "Keep in Messages" (skip)
+5. You review and decide for each video
+6. Moves videos to `~/Desktop/iMessage_Videos_REVIEW/`
+7. Creates log: `~/Desktop/iMessage_Video_Cleanup_Log.txt`
 
-Type `yes` to proceed. The script will:
-
-1. For each video marked for processing (one at a time):
-   - If "Import First": Import to Photos, wait 10 seconds, verify success
-   - If import fails: Skip that video and continue
-   - If successful: Move (not copy!) from iMessage to review folder
-2. **Move files to review folders**:
-   - `already_in_photos/` - Videos that were already in Photos
+**After reviewing all videos**:
+1. Open Photos - verify videos are there
+2. Check review folders:
+   - `already_in_photos/` - Videos that were matched
    - `newly_imported/` - Videos that were just imported
-3. **Save detailed log**: `~/Desktop/iMessage_Cleanup_Log.txt`
+3. When satisfied, manually delete review folder:
+   ```bash
+   rm -rf ~/Desktop/iMessage_Videos_REVIEW
+   ```
 
-**IMPORTANT**: Files are MOVED (not copied) to save disk space. No backup copies are created. The review folders themselves serve as your backup until you manually delete them.
-
-### Step 6: Manual Verification (Critical!)
-
-**Before deleting anything:**
-
-1. Open `~/Desktop/iMessage_Videos_REVIEW/` in Finder
-2. Spot-check several videos in each folder
-3. Open Photos app and verify the videos are there
-4. Open `~/Desktop/iMessage_Cleanup_Log.txt` and review what was done
-
-### Step 7: Final Cleanup (When Ready)
-
-Only after you're completely satisfied everything is safe:
-
+**Optional: Process more videos**:
 ```bash
-# Delete the entire review folder
-rm -rf ~/Desktop/iMessage_Videos_REVIEW
+# Videos ≥50MB (typically 130-170 videos, more time investment)
+python3 smart_video_cleaner.py --min-size=50
+
+# Videos ≥10MB (1000+ videos, only if you need maximum cleanup)
+python3 smart_video_cleaner.py --min-size=10
 ```
 
-Or delete individual folders:
+### Step 3: Reassess Progress
+
+After Phase 1 and Phase 2, run the assessment again to see your progress:
 
 ```bash
-# Delete specific folders
-rm -rf ~/Desktop/iMessage_Videos_REVIEW/already_in_photos
-rm -rf ~/Desktop/iMessage_Videos_REVIEW/newly_imported
+python3 assess_all_imessage_files.py
 ```
 
-**IMPORTANT**: There is no separate backup folder. The review folders ARE your backup. Once you delete them, the videos are gone from iMessage (but still in Photos). If you're nervous, wait a few weeks before deleting.
+This will show you:
+- How much space you've freed up
+- Whether you've hit your storage goal
+- If you need to process more videos (e.g., run Phase 2 with `--min-size=50`)
 
-## Files Created
+## Expected Results
 
-| File | Purpose |
-|------|---------|
-| `~/Desktop/iMessage_Video_Inventory.csv` | Complete list of all videos found |
-| `~/Desktop/iMessage_Video_Decisions.json` | Your decisions for each video |
-| `~/Desktop/iMessage_Cleanup_Log.txt` | Detailed log of all actions |
-| `~/Desktop/iMessage_Videos_REVIEW/` | Review folders with moved files |
+Based on real-world data:
+
+**Phase 1 (Images)**: 30-42 GB freed
+- Depends on how many images are duplicates vs. unique to Messages
+
+**Phase 2 (Videos ≥100MB)**: 3-5 GB freed
+- 30-40 largest videos
+
+**Phase 2 (Videos ≥50MB)**: 10-13 GB freed
+- 130-170 videos
+
+**Total**: 40-60 GB potential savings
+
+## Files Created During Cleanup
+
+| File/Folder | Purpose |
+|------------|---------|
+| `~/Desktop/iMessage_Images_REVIEW/` | Images moved from Messages (delete when satisfied) |
+| `~/Desktop/iMessage_Videos_REVIEW/` | Videos moved from Messages (delete when satisfied) |
+| `~/Desktop/iMessage_Image_Import_Log.txt` | Detailed log of image import |
+| `~/Desktop/iMessage_Video_Cleanup_Log.txt` | Detailed log of video cleanup |
+| `~/Desktop/iMessage_Video_Decisions.json` | Your decisions (can resume if interrupted) |
+| `~/Desktop/iMessage_Video_Inventory.csv` | Assessment data |
 
 ## Resuming After Interruption
 
-If you quit during Phase 3 (review), simply run the script again:
+Both tools support resuming:
 
-```bash
-python3 imessage_video_cleaner.py
-```
+**Image Importer**: Just run it again - it will skip already-imported images
 
-The script will:
-- Load your previous decisions
-- Skip videos you already reviewed
-- Continue from where you left off
+**Video Cleaner**: Run the same command - it loads your previous decisions from the JSON file and continues where you left off
+
+## Manual Verification (Critical!)
+
+**Before permanently deleting review folders:**
+
+1. Open Photos app
+   - Browse recent imports
+   - Spot-check videos are actually there
+   - Check a few images are present
+
+2. Check review folders on Desktop
+   - `iMessage_Images_REVIEW/` - Spot-check a few images
+   - `iMessage_Videos_REVIEW/` - Spot-check a few videos
+
+3. Review the logs
+   - `iMessage_Image_Import_Log.txt` - See what was imported
+   - `iMessage_Video_Cleanup_Log.txt` - See what was processed
+
+4. When satisfied everything is safe in Photos:
+   ```bash
+   # Delete image review folder
+   rm -rf ~/Desktop/iMessage_Images_REVIEW
+
+   # Delete video review folder
+   rm -rf ~/Desktop/iMessage_Videos_REVIEW
+   ```
+
+**Don't rush this step!** These are precious memories. Take your time verifying.
 
 ## Troubleshooting
 
