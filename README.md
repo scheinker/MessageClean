@@ -11,17 +11,24 @@ This script helps free up storage space on your Mac by identifying and safely re
 
 ## Scripts Included
 
-1. **`assess_imessage_videos.py`** - Quick assessment tool (run this first!)
-   - Read-only analysis of iMessage video attachments
-   - Shows how many videos, sizes, and distribution
-   - Helps you decide if the full cleaner is worth running
+1. **`assess_all_imessage_files.py`** - **START HERE!** Comprehensive analysis (RECOMMENDED FIRST STEP)
+   - Analyzes ALL file types, not just videos
+   - Shows what's actually taking up storage (videos? images? documents?)
+   - Identifies top storage consumers
+   - Recommends cleanup strategy based on findings
+   - Takes ~1-2 minutes to run
+
+2. **`assess_imessage_videos.py`** - Video-specific assessment
+   - Read-only analysis of video attachments only
+   - Shows video sizes and distribution
+   - Use if you know videos are the problem
    - Takes ~30 seconds to run
 
-2. **`imessage_video_cleaner.py`** - Full cleaning tool
+3. **`imessage_video_cleaner.py`** - Interactive video cleaning tool
    - Interactive GUI for reviewing each video
    - Safely moves duplicates to review folders
    - Human approval required for every file
-   - Takes time depending on number of videos
+   - **Warning**: May not be practical for 1000+ videos (would take hours)
 
 ## Safety Features
 
@@ -74,47 +81,56 @@ You should see something like `Python 3.9.6` or higher.
 - The scripts will detect permission errors and show these instructions if needed
 - This is safe - it only allows Terminal to read protected folders
 
-## Quick Assessment (Run This First!)
+## Comprehensive Assessment (RUN THIS FIRST!)
 
-Before running the full cleaner, use the assessment script to understand the scope of the problem:
+**Before doing anything else**, run the comprehensive assessment to understand what's ACTUALLY taking up space:
 
 ```bash
 cd /Users/matte/MessageClean
-python3 assess_imessage_videos.py
+python3 assess_all_imessage_files.py
 ```
 
 This will show you:
-- How many video files exist in iMessage attachments
-- Total storage used
-- Size distribution (how many are <10MB, 10-50MB, 50-100MB, etc.)
-- Which files would be processed (≥10MB)
-- Top 10 largest files
-- Estimated time to review
-- Potential storage savings
+- **All file types** (videos, images, documents, audio, etc.)
+- **Storage by category** - which type uses the most space?
+- **Top 30 largest files** - quick wins for manual cleanup
+- **Recommended strategy** based on what it finds
+- **Size distribution** across all files
 
 **This script is read-only and completely safe** - it doesn't modify anything.
 
-Example output:
+### Why This Matters
+
+System Settings might report "126 GB for Messages", but you need to know:
+- Is it videos? Images? PDFs? Audio files?
+- Are there a few huge files or thousands of small ones?
+- What cleanup strategy makes sense?
+
+### Example: What You Might Discover
+
 ```
-SUMMARY
+STORAGE BY CATEGORY
 ----------------------------------------------------------------------
-Total video files found: 147
-Total storage used: 3.2 GB
-Files >= 10MB (would be processed): 92
-Storage in large files: 2.8 GB
+Video        :  7,054 files | 47.8 GB (38%)
+Image        : 15,230 files | 52.1 GB (41%)
+Document     :    145 files |  8.2 GB (7%)
+Audio        :    892 files |  3.1 GB (2%)
 
-SIZE DISTRIBUTION
+TOP 30 LARGEST FILES
 ----------------------------------------------------------------------
-< 10 MB      :   55 files (37.4%) - 245.3 MB
-10-50 MB     :   68 files (46.3%) - 1.8 GB
-50-100 MB    :   18 files (12.2%) - 1.2 GB
-100-500 MB   :    6 files ( 4.1%) - 980.5 MB
+ 1.   146.2 MB - MOV_4445.MOV (Video)
+ 2.    98.5 MB - vacation_video.mp4 (Video)
+ 3.    45.2 MB - presentation.pdf (Document)
+...
 
-Estimated time to review: 46-92 minutes
-Potential storage savings: 2.8 GB
+RECOMMENDATIONS
+----------------------------------------------------------------------
+Quick wins - manually review top 30 largest files
+- Top 30 files = 3.2 GB
+- Reviewing just 30 files could free up significant space
 ```
 
-Run this first on your wife's Mac to see if the full cleaner is worth the effort!
+**Run this first** to understand your situation before deciding on a cleanup strategy!
 
 ## How to Use the Full Cleaner
 
