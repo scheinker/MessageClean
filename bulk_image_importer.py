@@ -198,6 +198,9 @@ def validate_image(img_path):
     Returns (is_valid, skip_reason)
     - (True, None) if valid and should be imported
     - (False, reason) if should be skipped
+
+    This is AGGRESSIVE filtering to prevent ANY file that might trigger
+    a Photos dialog. Better to skip and leave in Messages than show dialogs.
     """
     # Check if it's a burst photo (Photos doesn't support duplicate bursts)
     if is_burst_photo(img_path):
@@ -216,22 +219,51 @@ def validate_image(img_path):
     # Check if file is valid/not corrupted
     try:
         with Image.open(img_path) as img:
+            # Get format before verify
+            img_format = img.format
+
             img.verify()  # Verify it's a valid image
 
         # Re-open to check image properties (verify() closes the file)
         with Image.open(img_path) as img:
             # Try to load the image data - this catches more corruption
-            img.load()
+            try:
+                img.load()
+            except Exception as e:
+                # If load fails, this file will cause Photos issues
+                return False, f"cannot load image data ({type(e).__name__})"
 
             # Check if image has valid dimensions
             if img.size[0] == 0 or img.size[1] == 0:
                 return False, "zero dimensions"
 
+            # Check for reasonable dimensions (catches some corrupted files)
+            if img.size[0] > 50000 or img.size[1] > 50000:
+                return False, "dimensions too large"
+
             # Check for valid mode
-            if img.mode not in ['RGB', 'RGBA', 'L', 'LA', 'CMYK', 'YCbCr', 'P']:
+            if img.mode not in ['RGB', 'RGBA', 'L', 'LA', 'CMYK', 'YCbCr', 'P', '1']:
                 return False, f"unsupported mode: {img.mode}"
 
+            # AGGRESSIVE: Skip files with unusual characteristics
+            # Some JPEG files with certain compression cause Photos issues
+            if img_format == 'JPEG':
+                # Check if EXIF data can be read
+                try:
+                    exif = img.getexif()
+                    # If EXIF exists but is malformed, Photos might reject it
+                    if exif is not None:
+                        # Try to iterate - this catches malformed EXIF
+                        for key in exif.keys():
+                            pass
+                except Exception:
+                    # Malformed EXIF - Photos might reject
+                    return False, "malformed EXIF data"
+
         return True, None
+    except OSError as e:
+        # OSError often means truncated/corrupted file
+        return False, f"corrupted file (OSError)"
     except Exception as e:
         return False, f"invalid/corrupted ({type(e).__name__})"
 
