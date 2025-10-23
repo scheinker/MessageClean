@@ -146,8 +146,9 @@ def confirm_proceed():
     print("=" * 80)
     print()
     print("1. Import all images to Photos app")
-    print("   - Photos will automatically detect duplicates")
-    print("   - Duplicates will be handled gracefully (not imported twice)")
+    print("   - NO DIALOGS - imports run automatically")
+    print("   - Some duplicates may be created (this is intentional)")
+    print("   - Takes 10-15 minutes for ~25,000 images")
     print()
     print("2. Move images from iMessage to review folder:")
     print(f"   {REVIEW_DIR}")
@@ -157,7 +158,11 @@ def confirm_proceed():
     print()
     print("4. You verify Photos has everything")
     print()
-    print("5. When satisfied, you manually delete the review folder")
+    print("5. Use Photos' built-in 'Merge Duplicates' feature")
+    print("   - Takes ~5 minutes")
+    print("   - Instructions will be shown at the end")
+    print()
+    print("6. When satisfied, you manually delete the review folder")
     print()
     print("=" * 80)
     print()
@@ -195,10 +200,11 @@ def import_to_photos(image_files, log_file):
             img_path = img_data['path']
             try:
                 # Import to Photos using AppleScript
+                # skip check duplicates true = no dialogs, Photos will handle duplicates after import
                 script = f'''
                     tell application "Photos"
                         activate
-                        import POSIX file "{img_path}" skip check duplicates false
+                        import POSIX file "{img_path}" skip check duplicates true
                     end tell
                 '''
                 result = subprocess.run(
@@ -351,12 +357,23 @@ def main():
         log_message("", IMPORT_LOG)
         log_message("NEXT STEPS:", IMPORT_LOG)
         log_message("1. Open Photos and verify images are there", IMPORT_LOG)
-        log_message("2. Check the review folder to see moved images", IMPORT_LOG)
-        log_message("3. When satisfied, manually delete the review folder:", IMPORT_LOG)
+        log_message("2. Merge duplicate photos (IMPORTANT!):", IMPORT_LOG)
+        log_message("   a. In Photos, go to Albums sidebar", IMPORT_LOG)
+        log_message("   b. Scroll to 'Utilities' section", IMPORT_LOG)
+        log_message("   c. Click 'Duplicates' album", IMPORT_LOG)
+        log_message("   d. Review duplicates and click 'Merge' for each", IMPORT_LOG)
+        log_message("      (or 'Merge All' if available in newer macOS)", IMPORT_LOG)
+        log_message("   e. This preserves all metadata and edits", IMPORT_LOG)
+        log_message("3. Check the review folder to see moved images", IMPORT_LOG)
+        log_message("4. When satisfied, manually delete the review folder:", IMPORT_LOG)
         log_message(f"   rm -rf '{REVIEW_DIR}'", IMPORT_LOG)
         log_message("", IMPORT_LOG)
 
         # Show on console too
+        print()
+        print("=" * 80)
+        print("IMPORT COMPLETE!")
+        print("=" * 80)
         print(f"Total images: {len(image_files):,}")
         print(f"Imported to Photos: {imported:,}")
         print(f"Moved to review folder: {moved:,}")
@@ -364,12 +381,27 @@ def main():
         print(f"Review folder: {REVIEW_DIR}")
         print(f"Detailed log: {IMPORT_LOG}")
         print()
+        print("=" * 80)
         print("NEXT STEPS:")
-        print("1. Open Photos and verify images are there")
-        print("2. Check the review folder")
-        print("3. When satisfied, manually delete:")
+        print("=" * 80)
+        print()
+        print("1. Open Photos app and verify images are there")
+        print()
+        print("2. MERGE DUPLICATE PHOTOS (takes ~5 minutes):")
+        print("   a. In Photos, click 'Albums' in the sidebar")
+        print("   b. Scroll down to the 'Utilities' section")
+        print("   c. Click the 'Duplicates' album")
+        print("   d. You'll see sets of duplicate photos")
+        print("   e. Click 'Merge' for each duplicate set")
+        print("      (or 'Merge All' if available in your macOS version)")
+        print("   f. This will merge duplicates while preserving all metadata")
+        print()
+        print("3. Verify everything looks good in Photos")
+        print()
+        print("4. When satisfied, delete the review folder:")
         print(f"   rm -rf '{REVIEW_DIR}'")
         print()
+        print("=" * 80)
 
         return 0
 
