@@ -281,16 +281,22 @@ def process_batch(batch, batch_num, total_batches, log_file):
                 skipped += 1
                 failed_files.append(str(img_path))
                 log_message(f"  SKIPPED (burst photo): {img_path.name}", log_file)
+            elif "media item id" in output.lower():
+                # Photo is already in Photos! This is success, not an error
+                # Photos returns the media item ID when photo already exists
+                imported += 1
+                if (i + 1) % 50 == 0:
+                    print(f"    Processed {i + 1}/{batch_size} from this batch...")
+            elif result.returncode == 0 and len(output) == 0:
+                # Success - imported
+                imported += 1
+                if (i + 1) % 50 == 0:
+                    print(f"    Processed {i + 1}/{batch_size} from this batch...")
             elif output and len(output) > 0:
                 # Some other error was returned
                 skipped += 1
                 failed_files.append(str(img_path))
                 log_message(f"  SKIPPED ({output}): {img_path.name}", log_file)
-            elif result.returncode == 0:
-                # Success
-                imported += 1
-                if (i + 1) % 50 == 0:
-                    print(f"    Processed {i + 1}/{batch_size} from this batch...")
             else:
                 # Failed for unknown reason
                 failed += 1
