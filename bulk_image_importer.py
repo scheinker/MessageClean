@@ -145,12 +145,15 @@ def confirm_proceed():
     print("WHAT WILL HAPPEN")
     print("=" * 80)
     print()
-    print("1. Import all images to Photos app")
+    print("1. Process images in BATCHES (to avoid filling disk):")
+    print("   - Batch size: 500 images (~850 MB)")
+    print("   - For each batch: Import to Photos → Move from Messages → Repeat")
+    print("   - This keeps disk usage minimal (only ~1 GB extra at any time)")
     print("   - NO DIALOGS - imports run automatically")
     print("   - Some duplicates may be created (this is intentional)")
     print("   - Takes 10-15 minutes for ~25,000 images")
     print()
-    print("2. Move images from iMessage to review folder:")
+    print("2. Images moved to review folder:")
     print(f"   {REVIEW_DIR}")
     print()
     print("3. Create detailed log:")
@@ -177,89 +180,60 @@ def confirm_proceed():
             print("Please enter 'yes' or 'no'")
 
 
-def import_to_photos(image_files, log_file):
-    """Import images to Photos using AppleScript"""
-    log_message("=" * 80, log_file)
-    log_message("IMPORTING TO PHOTOS", log_file)
-    log_message("=" * 80, log_file)
-    log_message("", log_file)
-
-    total = len(image_files)
+def process_batch(batch, batch_num, total_batches, log_file):
+    """
+    Process one batch: import to Photos, then immediately move from Messages
+    This avoids filling up disk space
+    """
+    batch_size = len(batch)
     imported = 0
     failed = 0
+    moved = 0
     failed_files = []
 
-    # Import in batches to avoid overwhelming Photos
-    batch_size = 50
-    batches = [image_files[i:i + batch_size] for i in range(0, len(image_files), batch_size)]
+    print(f"\nBatch {batch_num}/{total_batches} ({batch_size} images)")
+    print(f"  Step 1/2: Importing to Photos...")
 
-    for batch_num, batch in enumerate(batches, 1):
-        print(f"\nImporting batch {batch_num} of {len(batches)} ({len(batch)} images)...")
+    # Import each image in the batch
+    for i, img_data in enumerate(batch):
+        img_path = img_data['path']
+        try:
+            # Import to Photos using AppleScript
+            # skip check duplicates true = no dialogs, Photos will handle duplicates after import
+            script = f'''
+                tell application "Photos"
+                    import POSIX file "{img_path}" skip check duplicates true
+                end tell
+            '''
+            result = subprocess.run(
+                ['osascript', '-e', script],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
 
-        for i, img_data in enumerate(batch):
-            img_path = img_data['path']
-            try:
-                # Import to Photos using AppleScript
-                # skip check duplicates true = no dialogs, Photos will handle duplicates after import
-                script = f'''
-                    tell application "Photos"
-                        activate
-                        import POSIX file "{img_path}" skip check duplicates true
-                    end tell
-                '''
-                result = subprocess.run(
-                    ['osascript', '-e', script],
-                    capture_output=True,
-                    text=True,
-                    timeout=30
-                )
-
-                if result.returncode == 0:
-                    imported += 1
-                    if (i + 1) % 10 == 0:
-                        print(f"  Progress: {imported}/{total} imported...")
-                else:
-                    failed += 1
-                    failed_files.append(str(img_path))
-                    log_message(f"  FAILED to import: {img_path.name}", log_file)
-
-            except Exception as e:
+            if result.returncode == 0:
+                imported += 1
+                if (i + 1) % 50 == 0:
+                    print(f"    Imported {i + 1}/{batch_size} from this batch...")
+            else:
                 failed += 1
                 failed_files.append(str(img_path))
-                log_message(f"  ERROR importing {img_path.name}: {e}", log_file)
+                log_message(f"  FAILED to import: {img_path.name}", log_file)
 
-        # Small delay between batches
-        if batch_num < len(batches):
-            import time
-            time.sleep(2)
+        except Exception as e:
+            failed += 1
+            failed_files.append(str(img_path))
+            log_message(f"  ERROR importing {img_path.name}: {e}", log_file)
 
-    log_message("", log_file)
-    log_message(f"Import complete: {imported} succeeded, {failed} failed", log_file)
+    print(f"  Step 2/2: Moving from Messages to review folder...")
 
-    return imported, failed, failed_files
-
-
-def move_to_review_folder(image_files, failed_files, log_file):
-    """Move images to review folder"""
-    log_message("=" * 80, log_file)
-    log_message("MOVING TO REVIEW FOLDER", log_file)
-    log_message("=" * 80, log_file)
-    log_message("", log_file)
-
-    # Create review directory
-    REVIEW_DIR.mkdir(parents=True, exist_ok=True)
-
-    moved = 0
-    move_failed = 0
-    skipped = 0
-
-    for img_data in image_files:
+    # Immediately move imported images from Messages to review folder
+    for img_data in batch:
         img_path = img_data['path']
 
         # Skip files that failed to import
         if str(img_path) in failed_files:
-            skipped += 1
-            log_message(f"  SKIPPED (import failed): {img_path.name}", log_file)
             continue
 
         try:
@@ -274,17 +248,69 @@ def move_to_review_folder(image_files, failed_files, log_file):
             shutil.move(str(img_path), str(target_path))
             moved += 1
 
-            if moved % 100 == 0:
-                print(f"  Moved {moved} files...")
-
         except Exception as e:
-            move_failed += 1
             log_message(f"  ERROR moving {img_path.name}: {e}", log_file)
 
-    log_message("", log_file)
-    log_message(f"Move complete: {moved} moved, {move_failed} failed, {skipped} skipped", log_file)
+    print(f"  ✓ Batch complete: {imported} imported, {moved} moved, {failed} failed")
 
-    return moved, move_failed, skipped
+    return imported, failed, moved, failed_files
+
+
+def process_all_images_batched(image_files, log_file):
+    """
+    Process all images in batches to avoid filling disk
+    Each batch: import → move → repeat
+    This keeps disk usage minimal
+    """
+    log_message("=" * 80, log_file)
+    log_message("BATCH PROCESSING (IMPORT → MOVE)", log_file)
+    log_message("=" * 80, log_file)
+    log_message("This prevents disk from filling up by moving each batch immediately", log_file)
+    log_message("", log_file)
+
+    # Create review directory
+    REVIEW_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Process in batches of 500 images (~850 MB at a time)
+    batch_size = 500
+    batches = [image_files[i:i + batch_size] for i in range(0, len(image_files), batch_size)]
+
+    total_imported = 0
+    total_failed = 0
+    total_moved = 0
+    all_failed_files = []
+
+    print()
+    print("=" * 80)
+    print("PROCESSING IN BATCHES")
+    print("=" * 80)
+    print(f"Total images: {len(image_files):,}")
+    print(f"Batch size: {batch_size} images (~850 MB)")
+    print(f"Total batches: {len(batches)}")
+    print()
+    print("Each batch: Import to Photos → Move from Messages → Free up space")
+    print("This prevents disk from filling up!")
+    print()
+
+    for batch_num, batch in enumerate(batches, 1):
+        imported, failed, moved, failed_files = process_batch(
+            batch, batch_num, len(batches), log_file
+        )
+
+        total_imported += imported
+        total_failed += failed
+        total_moved += moved
+        all_failed_files.extend(failed_files)
+
+        # Small delay between batches
+        if batch_num < len(batches):
+            import time
+            time.sleep(1)
+
+    log_message("", log_file)
+    log_message(f"Processing complete: {total_imported} imported, {total_moved} moved, {total_failed} failed", log_file)
+
+    return total_imported, total_failed, total_moved, all_failed_files
 
 
 def main():
@@ -315,25 +341,19 @@ def main():
 
         print()
         print("=" * 80)
-        print("STARTING IMPORT")
+        print("STARTING BATCH PROCESSING")
         print("=" * 80)
         print()
         print("This will take a while. Photos may become active/visible.")
         print("Please don't quit Photos or Terminal during this process.")
         print()
-
-        # Import to Photos
-        imported, failed, failed_files = import_to_photos(image_files, IMPORT_LOG)
-
-        # Move to review folder
-        print()
-        print("=" * 80)
-        print("MOVING TO REVIEW FOLDER")
-        print("=" * 80)
+        print("IMPORTANT: Processing in batches to prevent disk from filling up!")
+        print("Each batch imports to Photos, then immediately moves from Messages.")
         print()
 
-        moved, move_failed, skipped = move_to_review_folder(
-            image_files, failed_files, IMPORT_LOG
+        # Process all images in batches (import → move → repeat)
+        imported, failed, moved, failed_files = process_all_images_batched(
+            image_files, IMPORT_LOG
         )
 
         # Final summary
@@ -347,10 +367,8 @@ def main():
         log_message("=" * 80, IMPORT_LOG)
         log_message(f"Total images found: {len(image_files):,}", IMPORT_LOG)
         log_message(f"Successfully imported to Photos: {imported:,}", IMPORT_LOG)
-        log_message(f"Failed to import: {failed:,}", IMPORT_LOG)
-        log_message(f"Moved to review folder: {moved:,}", IMPORT_LOG)
-        log_message(f"Failed to move: {move_failed:,}", IMPORT_LOG)
-        log_message(f"Skipped (import failed): {skipped:,}", IMPORT_LOG)
+        log_message(f"Successfully moved to review folder: {moved:,}", IMPORT_LOG)
+        log_message(f"Failed (not imported or moved): {failed:,}", IMPORT_LOG)
         log_message("", IMPORT_LOG)
         log_message(f"Review folder: {REVIEW_DIR}", IMPORT_LOG)
         log_message(f"Detailed log: {IMPORT_LOG}", IMPORT_LOG)
