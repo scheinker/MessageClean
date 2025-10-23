@@ -242,9 +242,11 @@ def process_batch(batch, batch_num, total_batches, log_file):
         try:
             # Import to Photos using AppleScript
             # skip check duplicates true = no dialogs, Photos will handle duplicates after import
+            # Escape quotes in filename for AppleScript
+            safe_path = str(img_path).replace('"', '\\"')
             script = f'''
                 tell application "Photos"
-                    import POSIX file "{img_path}" skip check duplicates true
+                    import POSIX file "{safe_path}" skip check duplicates true
                 end tell
             '''
             result = subprocess.run(
