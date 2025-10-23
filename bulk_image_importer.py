@@ -181,17 +181,35 @@ def confirm_proceed():
             print("Please enter 'yes' or 'no'")
 
 
+def is_burst_photo(img_path):
+    """
+    Check if a photo is part of a burst sequence
+    Burst photos have special patterns in filenames
+    """
+    filename = img_path.name.lower()
+    # Common burst photo indicators
+    burst_patterns = ['_burst', 'burst_', '-burst', 'burst-']
+    return any(pattern in filename for pattern in burst_patterns)
+
+
 def validate_image(img_path):
     """
     Check if an image file is valid and can be opened
-    Returns True if valid, False otherwise
+    Returns (is_valid, skip_reason)
+    - (True, None) if valid and should be imported
+    - (False, reason) if should be skipped
     """
+    # Check if it's a burst photo (Photos doesn't support duplicate bursts)
+    if is_burst_photo(img_path):
+        return False, "burst photo"
+
+    # Check if file is valid/not corrupted
     try:
         with Image.open(img_path) as img:
             img.verify()  # Verify it's a valid image
-        return True
+        return True, None
     except Exception:
-        return False
+        return False, "invalid/corrupted"
 
 
 def process_batch(batch, batch_num, total_batches, log_file):
@@ -214,10 +232,11 @@ def process_batch(batch, batch_num, total_batches, log_file):
         img_path = img_data['path']
 
         # First, validate the image file
-        if not validate_image(img_path):
+        is_valid, skip_reason = validate_image(img_path)
+        if not is_valid:
             skipped += 1
             failed_files.append(str(img_path))
-            log_message(f"  SKIPPED (invalid/corrupted): {img_path.name}", log_file)
+            log_message(f"  SKIPPED ({skip_reason}): {img_path.name}", log_file)
             continue
 
         try:
@@ -275,7 +294,7 @@ def process_batch(batch, batch_num, total_batches, log_file):
             log_message(f"  ERROR moving {img_path.name}: {e}", log_file)
 
     if skipped > 0:
-        print(f"  ✓ Batch complete: {imported} imported, {moved} moved, {skipped} skipped (invalid), {failed} failed")
+        print(f"  ✓ Batch complete: {imported} imported, {moved} moved, {skipped} skipped (burst/invalid), {failed} failed")
     else:
         print(f"  ✓ Batch complete: {imported} imported, {moved} moved, {failed} failed")
 
@@ -317,7 +336,7 @@ def process_all_images_batched(image_files, log_file):
     print()
     print("Each batch: Validate → Import to Photos → Move from Messages → Free up space")
     print("This prevents disk from filling up!")
-    print("Invalid/corrupted files will be skipped automatically (no dialogs).")
+    print("Invalid/corrupted files and burst photos will be skipped (no dialogs).")
     print()
 
     for batch_num, batch in enumerate(batches, 1):
@@ -338,7 +357,7 @@ def process_all_images_batched(image_files, log_file):
 
     log_message("", log_file)
     if total_skipped > 0:
-        log_message(f"Processing complete: {total_imported} imported, {total_moved} moved, {total_skipped} skipped (invalid), {total_failed} failed", log_file)
+        log_message(f"Processing complete: {total_imported} imported, {total_moved} moved, {total_skipped} skipped (burst/invalid), {total_failed} failed", log_file)
     else:
         log_message(f"Processing complete: {total_imported} imported, {total_moved} moved, {total_failed} failed", log_file)
 
@@ -401,7 +420,7 @@ def main():
         log_message(f"Successfully imported to Photos: {imported:,}", IMPORT_LOG)
         log_message(f"Successfully moved to review folder: {moved:,}", IMPORT_LOG)
         if skipped > 0:
-            log_message(f"Skipped (invalid/corrupted files): {skipped:,}", IMPORT_LOG)
+            log_message(f"Skipped (burst photos + invalid/corrupted): {skipped:,}", IMPORT_LOG)
         log_message(f"Failed (not imported or moved): {failed:,}", IMPORT_LOG)
         log_message("", IMPORT_LOG)
         log_message(f"Review folder: {REVIEW_DIR}", IMPORT_LOG)
@@ -430,7 +449,7 @@ def main():
         print(f"Imported to Photos: {imported:,}")
         print(f"Moved to review folder: {moved:,}")
         if skipped > 0:
-            print(f"Skipped (invalid/corrupted): {skipped:,}")
+            print(f"Skipped (burst photos + invalid/corrupted): {skipped:,}")
         print()
         print(f"Review folder: {REVIEW_DIR}")
         print(f"Detailed log: {IMPORT_LOG}")
