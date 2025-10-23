@@ -54,6 +54,26 @@ python3 --version
 
 You should see something like `Python 3.9.6` or higher.
 
+## Important: Grant Full Disk Access
+
+**Before running either script**, you need to grant Terminal (or your terminal app) "Full Disk Access" permission. macOS blocks access to the Messages folder for security.
+
+### How to Grant Full Disk Access:
+
+1. Open **System Settings** (or **System Preferences** on older macOS)
+2. Go to **Privacy & Security** → **Full Disk Access**
+3. Click the **lock icon** 🔒 at the bottom and authenticate
+4. Click the **+** button
+5. Navigate to `/Applications/Utilities/`
+6. Select **Terminal** and click **Open**
+7. **Restart Terminal completely** (Cmd+Q then reopen)
+8. Run the script again
+
+### Notes:
+- If using iTerm2, VS Code terminal, or another terminal app, add that app instead
+- The scripts will detect permission errors and show these instructions if needed
+- This is safe - it only allows Terminal to read protected folders
+
 ## Quick Assessment (Run This First!)
 
 Before running the full cleaner, use the assessment script to understand the scope of the problem:
@@ -245,11 +265,13 @@ If it's elsewhere, you'll need to update the `PHOTOS_LIBRARY` variable in the sc
 
 ### "Permission denied" errors
 
+If you see `PermissionError: [Errno 1] Operation not permitted`, this means Terminal doesn't have access to the Messages folder.
+
+**Solution**: Grant Terminal "Full Disk Access" - see the detailed instructions in the "Important: Grant Full Disk Access" section above.
+
 The script needs to access:
 - `~/Library/Messages/Attachments/` (iMessage attachments)
 - `~/Pictures/Photos Library.photoslibrary/` (Photos library)
-
-You may need to grant Terminal "Full Disk Access" in System Preferences > Security & Privacy > Privacy.
 
 ### Import to Photos fails
 

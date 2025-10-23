@@ -71,7 +71,38 @@ def analyze_videos():
 
     # First, show directory structure for debugging
     print("Directory structure:")
-    subdirs = [d for d in ATTACHMENTS_DIR.iterdir() if d.is_dir()]
+    try:
+        subdirs = [d for d in ATTACHMENTS_DIR.iterdir() if d.is_dir()]
+    except PermissionError:
+        print()
+        print("=" * 70)
+        print("PERMISSION DENIED")
+        print("=" * 70)
+        print()
+        print(f"Cannot access: {ATTACHMENTS_DIR}")
+        print()
+        print("macOS is blocking access to the Messages folder for security.")
+        print("You need to grant 'Full Disk Access' permission to Terminal.")
+        print()
+        print("HOW TO FIX:")
+        print("=" * 70)
+        print("1. Open System Settings (or System Preferences)")
+        print("2. Go to 'Privacy & Security' → 'Full Disk Access'")
+        print("3. Click the lock icon and authenticate")
+        print("4. Click the '+' button")
+        print("5. Navigate to /Applications/Utilities/")
+        print("6. Select 'Terminal' and click 'Open'")
+        print("7. Restart Terminal")
+        print("8. Run this script again")
+        print()
+        print("ALTERNATIVE: If using a different terminal app (like iTerm2),")
+        print("add that application instead of Terminal.")
+        print()
+        print("ALTERNATIVE: Run Python directly:")
+        print("1. Add 'Python' instead of Terminal to Full Disk Access")
+        print("2. Find Python at: /usr/bin/python3")
+        print()
+        return
     if subdirs:
         print(f"  Found {len(subdirs)} subdirectories")
         # Show first few subdirectories

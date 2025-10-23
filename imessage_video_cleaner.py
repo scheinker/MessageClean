@@ -157,10 +157,37 @@ class VideoDiscovery:
         if not self.attachments_dir.exists():
             raise FileNotFoundError(f"Attachments directory not found: {self.attachments_dir}")
 
-        video_files = []
-        for ext in VIDEO_EXTENSIONS:
-            video_files.extend(self.attachments_dir.rglob(f'*{ext}'))
-            video_files.extend(self.attachments_dir.rglob(f'*{ext.upper()}'))
+        try:
+            video_files = []
+            for ext in VIDEO_EXTENSIONS:
+                video_files.extend(self.attachments_dir.rglob(f'*{ext}'))
+                video_files.extend(self.attachments_dir.rglob(f'*{ext.upper()}'))
+        except PermissionError:
+            print()
+            print("=" * 70)
+            print("PERMISSION DENIED")
+            print("=" * 70)
+            print()
+            print(f"Cannot access: {self.attachments_dir}")
+            print()
+            print("macOS is blocking access to the Messages folder for security.")
+            print("You need to grant 'Full Disk Access' permission to Terminal.")
+            print()
+            print("HOW TO FIX:")
+            print("=" * 70)
+            print("1. Open System Settings (or System Preferences)")
+            print("2. Go to 'Privacy & Security' → 'Full Disk Access'")
+            print("3. Click the lock icon and authenticate")
+            print("4. Click the '+' button")
+            print("5. Navigate to /Applications/Utilities/")
+            print("6. Select 'Terminal' and click 'Open'")
+            print("7. Restart Terminal")
+            print("8. Run this script again")
+            print()
+            print("ALTERNATIVE: If using a different terminal app (like iTerm2),")
+            print("add that application instead of Terminal.")
+            print()
+            raise PermissionError("Full Disk Access required for Terminal")
 
         # Filter by size and create VideoFile objects
         for i, path in enumerate(video_files):
