@@ -214,9 +214,10 @@ def validate_image(img_path):
         if file_size < 100:  # Less than 100 bytes is suspicious
             return False, "file too small"
         # Skip tiny files (GIFs, emojis, memojis) - not worth processing
-        # These are typically < 100 KB and don't contribute to storage issues
-        if file_size < 100 * 1024:  # Less than 100 KB
-            return False, "file too small (< 100 KB)"
+        # These are typically < 200 KB and don't contribute to storage issues
+        # Memojis are ~150 KB, so use 200 KB threshold
+        if file_size < 200 * 1024:  # Less than 200 KB
+            return False, "file too small (< 200 KB)"
     except Exception:
         return False, "cannot read file"
 
